@@ -67,7 +67,14 @@ pub mod openai {
     }
 
     impl OpenAIFunctionPayload {
-        pub fn new(model: String, query: String) -> Self {
+        pub fn new(
+            model: String,
+            query: String,
+            function_name: String,
+            function_description: String,
+            properties: serde_json::Value,
+            required: Vec<String>,
+        ) -> Self {
             let system_message = OpenAIPayloadMessage::new(
                 "system".to_string(),
                 "You are a helpful assistant.".to_string(),
@@ -75,25 +82,15 @@ pub mod openai {
             let user_message = OpenAIPayloadMessage::new("user".to_string(), query);
             let messages = vec![system_message, user_message];
 
-            // Define function parameters
             let parameters = OpenAIFunctionParameter {
                 param_type: "object".to_string(),
-                properties: serde_json::json!({
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA"
-                    },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"]
-                    }
-                }),
-                required: vec!["location".to_string()],
+                properties,
+                required,
             };
 
             let function_details = OpenAIFunctionDetails {
-                name: "get_current_weather".to_string(),
-                description: "Get the current weather in a given location".to_string(),
+                name: function_name,
+                description: function_description,
                 parameters,
             };
 
@@ -173,12 +170,26 @@ pub mod openai {
         bail!("No valid response content found.")
     }
 
-    // Function call method
-    pub async fn function_call(query: String) -> Result<String, Error> {
+    // Flexible function call method
+    pub async fn function_call(
+        query: String,
+        function_name: String,
+        function_description: String,
+        properties: serde_json::Value,
+        required: Vec<String>,
+    ) -> Result<String, Error> {
         dotenv().ok();
         let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
         let client = Client::new();
-        let payload = OpenAIFunctionPayload::new("gpt-4o".to_string(), query);
+
+        let payload = OpenAIFunctionPayload::new(
+            "gpt-4o".to_string(),
+            query,
+            function_name,
+            function_description,
+            properties,
+            required,
+        );
 
         let response = client
             .post("https://api.openai.com/v1/chat/completions")
@@ -220,6 +231,7 @@ mod tests {
     use super::openai::*;
     use std::env;
     use dotenv::dotenv;
+    use serde_json::json;
 
     // Helper function to set up the environment variable
     fn setup_openai_key() {
@@ -248,9 +260,25 @@ mod tests {
     async fn test_openai_function_call() {
         setup_openai_key();
 
+        // Define dynamic properties and required fields for the function call
+        let properties = json!({
+            "location": {
+                "type": "string",
+                "description": "The city and state, e.g., San Francisco, CA"
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"]
+            }
+        });
+        let required = vec!["location".to_string()];
+
         // Test a query that may trigger a function call
         let query = "What's the weather like in Boston today?".to_string();
-        match function_call(query).await {
+        let function_name = "get_current_weather".to_string();
+        let function_description = "Get the current weather in a given location".to_string();
+
+        match function_call(query, function_name, function_description, properties, required).await {
             Ok(response) => {
                 assert!(
                     response.contains("Function") || !response.is_empty(),
