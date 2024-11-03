@@ -5,7 +5,7 @@ pub mod openai {
     use serde::{Deserialize, Serialize};
     use std::env;
 
-    #[derive(Serialize, Debug)]
+    #[derive(Serialize)]
     pub struct OpenAIPayloadMessage {
         role: String,
         content: String,
@@ -37,11 +37,93 @@ pub mod openai {
         }
     }
 
+    #[derive(Deserialize)]
+    pub struct OpenAIChatCompletionResponseChoiceMessage {
+        content: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct OpenAIChatCompletionResponseChoice {
+        message: OpenAIChatCompletionResponseChoiceMessage,
+    }
+
+    pub type OpenAIChatCompletionResponseChoices = Vec<OpenAIChatCompletionResponseChoice>;
+
+    #[derive(Deserialize)]
+    pub struct OpenAIChatCompletionResponse {
+        choices: OpenAIChatCompletionResponseChoices,
+    }
+
+    pub async fn openai(query: String) -> Result<String, Error> {
+        dotenv().ok();
+        let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
+        let client = Client::new();
+        let payload = OpenAIPayload::new("gpt-4o".to_string(), query);
+
+        let response = client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+            .header(header::AUTHORIZATION, format!("Bearer {}", openai_api_key))
+            .json(&payload)
+            .send()
+            .await?;
+
+        if response.status() != StatusCode::OK {
+            bail!("Failed to fetch response: {}", response.status());
+        }
+
+        let completion: OpenAIChatCompletionResponse = response.json().await?;
+
+        // Extract the content from the first choice
+        if let Some(choice) = completion.choices.first() {
+            Ok(choice.message.content.clone())
+        } else {
+            bail!("No choices found in the response.")
+        }
+    }
+}
+
+pub mod openai_json {
+    use anyhow::{bail, Error, Result};
+    use dotenv::dotenv;
+    use reqwest::{header, Client, StatusCode};
+    use serde::{Deserialize, Serialize};
+    use serde_json::{json, Value};
+    use std::env;
+
+    #[derive(Serialize, Debug)]
+    pub struct OpenAIPayloadMessage {
+        role: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        content: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        function_call: Option<Value>,
+    }
+
+    impl OpenAIPayloadMessage {
+        pub fn new(
+            role: String,
+            content: Option<String>,
+            function_call: Option<Value>,
+            name: Option<String>,
+        ) -> Self {
+            OpenAIPayloadMessage {
+                role,
+                content,
+                function_call,
+                name,
+            }
+        }
+    }
+
+    pub type OpenAIPayloadMessages = Vec<OpenAIPayloadMessage>;
+
     #[derive(Serialize, Debug)]
     pub struct OpenAIFunctionParameter {
         #[serde(rename = "type")]
         param_type: String,
-        properties: serde_json::Value,
+        properties: Value,
         required: Vec<String>,
     }
 
@@ -69,18 +151,33 @@ pub mod openai {
     impl OpenAIFunctionPayload {
         pub fn new(
             model: String,
-            query: String,
+            user_query: String,
             function_name: String,
             function_description: String,
-            properties: serde_json::Value,
+            properties: Value,
             required: Vec<String>,
+            function_call_arguments: Value,
         ) -> Self {
-            let system_message = OpenAIPayloadMessage::new(
-                "system".to_string(),
-                "You are a helpful assistant.".to_string(),
+            let user_message =
+                OpenAIPayloadMessage::new("user".to_string(), Some(user_query), None, None);
+
+            let assistant_message = OpenAIPayloadMessage::new(
+                "assistant".to_string(),
+                None,
+                Some(
+                    json!({ "name": function_name, "arguments": serde_json::to_string(&function_call_arguments).unwrap() }),
+                ),
+                None,
             );
-            let user_message = OpenAIPayloadMessage::new("user".to_string(), query);
-            let messages = vec![system_message, user_message];
+
+            let function_message = OpenAIPayloadMessage::new(
+                "function".to_string(),
+                Some(serde_json::to_string(&function_call_arguments).unwrap()),
+                None,
+                Some(function_name.clone()),
+            );
+
+            let messages = vec![user_message, assistant_message, function_message];
 
             let parameters = OpenAIFunctionParameter {
                 param_type: "object".to_string(),
@@ -89,7 +186,7 @@ pub mod openai {
             };
 
             let function_details = OpenAIFunctionDetails {
-                name: function_name,
+                name: function_name.clone(),
                 description: function_description,
                 parameters,
             };
@@ -108,66 +205,35 @@ pub mod openai {
         }
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct OpenAIChatCompletionResponseChoiceMessageToolCall {
         id: String,
         r#type: String,
         function: FunctionCallDetails,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct FunctionCallDetails {
         name: String,
         arguments: String,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct OpenAIChatCompletionResponseChoiceMessage {
         content: Option<String>,
         tool_calls: Option<Vec<OpenAIChatCompletionResponseChoiceMessageToolCall>>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct OpenAIChatCompletionResponseChoice {
         message: OpenAIChatCompletionResponseChoiceMessage,
     }
 
     pub type OpenAIChatCompletionResponseChoices = Vec<OpenAIChatCompletionResponseChoice>;
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct OpenAIChatCompletionResponse {
-        choices: OpenAIChatCompletionResponseChoices,
-    }
-
-    // Basic completion method
-    pub async fn openai(query: String) -> Result<String, Error> {
-        dotenv().ok();
-        let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
-        let client = Client::new();
-        let payload = OpenAIPayload::new("gpt-4o".to_string(), query);
-
-        let response = client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-            .header(header::AUTHORIZATION, format!("Bearer {}", openai_api_key))
-            .json(&payload)
-            .send()
-            .await?;
-
-        if response.status() != StatusCode::OK {
-            bail!("Failed to fetch response: {}", response.status());
-        }
-
-        let completion: OpenAIChatCompletionResponse = response.json().await?;
-
-        // Extract the content from the first choice
-        if let Some(choice) = completion.choices.first() {
-            if let Some(content) = &choice.message.content {
-                return Ok(content.clone());
-            }
-        }
-
-        bail!("No valid response content found.")
+        pub choices: OpenAIChatCompletionResponseChoices,
     }
 
     // Flexible function call method
@@ -175,8 +241,9 @@ pub mod openai {
         query: String,
         function_name: String,
         function_description: String,
-        properties: serde_json::Value,
+        properties: Value,
         required: Vec<String>,
+        function_call_arguments: Value,
     ) -> Result<String, Error> {
         dotenv().ok();
         let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
@@ -189,7 +256,11 @@ pub mod openai {
             function_description,
             properties,
             required,
+            function_call_arguments,
         );
+
+        let pretty_payload = serde_json::to_string_pretty(&payload).map_err(|e| Error::new(e))?;
+        //bail!("Payload:\n{}", pretty_payload);
 
         let response = client
             .post("https://api.openai.com/v1/chat/completions")
@@ -205,7 +276,8 @@ pub mod openai {
 
         let completion: OpenAIChatCompletionResponse = response.json().await?;
 
-        // Check for tool calls
+        println!("Response: {:#?}", completion);
+
         if let Some(choice) = completion.choices.first() {
             if let Some(tool_calls) = &choice.message.tool_calls {
                 if let Some(tool_call) = tool_calls.first() {
@@ -216,7 +288,6 @@ pub mod openai {
                 }
             }
 
-            // If no tool calls, return the content if available
             if let Some(content) = &choice.message.content {
                 return Ok(content.clone());
             }
@@ -228,12 +299,11 @@ pub mod openai {
 
 #[cfg(test)]
 mod tests {
-    use super::openai::*;
-    use std::env;
+    use super::openai_json::*;
     use dotenv::dotenv;
     use serde_json::json;
+    use std::env;
 
-    // Helper function to set up the environment variable
     fn setup_openai_key() {
         dotenv().ok();
         if env::var("OPENAI_API_KEY").is_err() {
@@ -242,51 +312,122 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_openai_basic_completion() {
+    async fn test_openai_function_call_with_election_data() {
         setup_openai_key();
 
-        // Test a simple query
-        let query = "What is the capital of France?".to_string();
-        match openai(query).await {
-            Ok(response) => {
-                assert!(!response.is_empty(), "Expected a non-empty response");
-                println!("Basic Completion Response: {}", response);
-            }
-            Err(e) => panic!("Failed to get a response from OpenAI: {:?}", e),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_openai_function_call() {
-        setup_openai_key();
-
-        // Define dynamic properties and required fields for the function call
         let properties = json!({
-            "location": {
+            "candidate": {
                 "type": "string",
-                "description": "The city and state, e.g., San Francisco, CA"
+                "description": "The name of the candidate"
             },
-            "unit": {
-                "type": "string",
-                "enum": ["celsius", "fahrenheit"]
-            }
+           "status": {
+             "type": "string",
+             "enum": ["loser", "winner"]
+           },
+           "votes": {
+             "type": "integer",
+             "description": "amount of popular votes percentage_wise"
+           }
         });
-        let required = vec!["location".to_string()];
+        let required = vec![
+            "candidate".to_string(),
+            "status".to_string(),
+            "votes".to_string(),
+        ];
 
-        // Test a query that may trigger a function call
-        let query = "What's the weather like in Boston today?".to_string();
-        let function_name = "get_current_weather".to_string();
-        let function_description = "Get the current weather in a given location".to_string();
+        let function_call_arguments = json!({
+            "election_year": 2020,
+        });
 
-        match function_call(query, function_name, function_description, properties, required).await {
+        let query = "Who won the last USA presidential election?".to_string();
+        let function_name = "get_previous_candidate".to_string();
+        let function_description =
+            "Get the previous winner of the latest USA elections".to_string();
+
+        match function_call(
+            query,
+            function_name,
+            function_description,
+            properties,
+            required,
+            function_call_arguments,
+        )
+        .await
+        {
             Ok(response) => {
                 assert!(
                     response.contains("Function") || !response.is_empty(),
                     "Expected a tool call or valid response content"
                 );
-                println!("Function Call Response: {}", response);
+                println!("Function Call Response with Election Data: {}", response);
             }
-            Err(e) => panic!("Failed to get a response from OpenAI function call: {:?}", e),
+            Err(e) => panic!(
+                "Failed to get a response from OpenAI function call: {:?}",
+                e
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_openai_function_call_with_location_data_flat() {
+        setup_openai_key();
+
+        // Define flat properties for location data (no nested structures)
+        let properties = json!({
+            "latitude": {
+                "type": "number",
+                "description": "Latitude of the location"
+            },
+            "longitude": {
+                "type": "number",
+                "description": "Longitude of the location"
+            },
+            "is_valid_json_response": {
+                "type": "boolean",
+                "enum": ["true", "false"],
+                "description": "Is this response valid json."
+            }
+        });
+        let required = vec![
+            "latitude".to_string(),
+            "longitude".to_string(),
+            "is_valid_json_response".to_string(),
+        ];
+
+        // Define arguments for the function call
+        let function_call_arguments = json!({
+            "city": "Havana",
+            "country": "Cuba"
+        });
+
+        // Test query to retrieve location data
+        let query = "What are the coordinates of Havana, Cuba?".to_string();
+        let function_name = "get_location_coordinates".to_string();
+        let function_description =
+            "Get the latitude and longitude of a specified city and country.".to_string();
+
+        match function_call(
+            query,
+            function_name,
+            function_description,
+            properties,
+            required,
+            function_call_arguments,
+        )
+        .await
+        {
+            Ok(response) => {
+                assert!(
+                    response.contains("Function") || !response.is_empty(),
+                    "Expected a tool call or valid response content"
+                );
+                println!("Function Call Response with Location Data: {}", response);
+                panic!("yeah!");
+            }
+            Err(e) => panic!(
+                "Failed to get a response from OpenAI function call: {:?}",
+                e
+            ),
         }
     }
 }
