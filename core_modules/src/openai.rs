@@ -300,8 +300,6 @@ pub mod openai_json {
 
         let completion: OpenAIChatCompletionResponse = response.json().await?;
 
-        println!("Response: {:#?}", completion);
-
         if let Some(choice) = completion.choices.first() {
             if let Some(tool_calls) = &choice.message.tool_calls {
                 if let Some(tool_call) = tool_calls.first() {
