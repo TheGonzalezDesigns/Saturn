@@ -58,7 +58,7 @@ pub mod jarvis {
         dotenv().ok();
         let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
         let client = Client::new();
-        let payload = OpenAIPayload::new("gpt-4".to_string(), query);
+        let payload = OpenAIPayload::new("gpt-4o".to_string(), query);
 
         let response = client
             .post("https://api.openai.com/v1/chat/completions")
