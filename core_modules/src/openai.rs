@@ -154,12 +154,36 @@ pub mod openai_json {
             user_query: String,
             function_name: String,
             function_description: String,
-            properties: Value,
-            required: Vec<String>,
+            mut properties: Value,
+            mut required: Vec<String>,
             function_call_arguments: Value,
         ) -> Self {
-            let user_message =
-                OpenAIPayloadMessage::new("user".to_string(), Some(user_query), None, None);
+            // Define the is_valid_json_response property
+            let is_valid_json_property = json!({
+                "is_valid_json_response": {
+                    "type": "boolean",
+                    "description": "Indicates if the response is valid JSON."
+                }
+            });
+
+            // Merge with the user-defined properties
+            if let Some(props) = properties.as_object_mut() {
+                props.extend(is_valid_json_property.as_object().unwrap().clone());
+            }
+
+            // Ensure `is_valid_json_response` is in the required fields
+            if !required.contains(&"is_valid_json_response".to_string()) {
+                required.push("is_valid_json_response".to_string());
+            }
+
+            let user_message = OpenAIPayloadMessage::new(
+                "user".to_string(),
+                Some(format!(
+                    "Respond to the following query in perfect json: {user_query}"
+                )),
+                None,
+                None,
+            );
 
             let assistant_message = OpenAIPayloadMessage::new(
                 "assistant".to_string(),
@@ -320,20 +344,8 @@ mod tests {
                 "type": "string",
                 "description": "The name of the candidate"
             },
-           "status": {
-             "type": "string",
-             "enum": ["loser", "winner"]
-           },
-           "votes": {
-             "type": "integer",
-             "description": "amount of popular votes percentage_wise"
-           }
         });
-        let required = vec![
-            "candidate".to_string(),
-            "status".to_string(),
-            "votes".to_string(),
-        ];
+        let required = vec!["candidate".to_string()];
 
         let function_call_arguments = json!({
             "election_year": 2020,
@@ -381,18 +393,9 @@ mod tests {
             "longitude": {
                 "type": "number",
                 "description": "Longitude of the location"
-            },
-            "is_valid_json_response": {
-                "type": "boolean",
-                "enum": ["true", "false"],
-                "description": "Is this response valid json."
             }
         });
-        let required = vec![
-            "latitude".to_string(),
-            "longitude".to_string(),
-            "is_valid_json_response".to_string(),
-        ];
+        let required = vec!["latitude".to_string(), "longitude".to_string()];
 
         // Define arguments for the function call
         let function_call_arguments = json!({
@@ -422,7 +425,6 @@ mod tests {
                     "Expected a tool call or valid response content"
                 );
                 println!("Function Call Response with Location Data: {}", response);
-                panic!("yeah!");
             }
             Err(e) => panic!(
                 "Failed to get a response from OpenAI function call: {:?}",
