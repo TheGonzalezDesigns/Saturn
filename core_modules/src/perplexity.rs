@@ -1,4 +1,4 @@
-pub mod search {
+pub mod perplexity {
     use anyhow::{bail, Error, Result};
     use dotenv::dotenv;
     use reqwest::{header, Client, StatusCode};
@@ -27,10 +27,10 @@ pub mod search {
         temperature: f32,
         top_p: f32,
         return_citations: bool,
-        search_domain_filter: Vec<String>,
+        perplexity_domain_filter: Vec<String>,
         return_images: bool,
         return_related_questions: bool,
-        search_recency_filter: String,
+        perplexity_recency_filter: String,
         top_k: u32,
         stream: bool,
         presence_penalty: f32,
@@ -52,10 +52,10 @@ pub mod search {
                 temperature: 0.2,
                 top_p: 0.9,
                 return_citations: true,
-                search_domain_filter: vec!["perplexity.ai".to_string()],
+                perplexity_domain_filter: vec!["perplexity.ai".to_string()],
                 return_images: false,
                 return_related_questions: false,
-                search_recency_filter: "month".to_string(),
+                perplexity_recency_filter: "month".to_string(),
                 top_k: 0,
                 stream: false,
                 presence_penalty: 0.0,
@@ -81,16 +81,21 @@ pub mod search {
         choices: PerplexityResponseChoices,
     }
 
-    pub async fn search(query: String) -> Result<String, Error> {
+    pub async fn perplexity(query: String) -> Result<String, Error> {
         dotenv().ok();
-        let perplexity_api_key = env::var("PERPLEXITY_API_KEY").expect("Failed to extract PERPLEXITY_API_KEY");
+        let perplexity_api_key =
+            env::var("PERPLEXITY_API_KEY").expect("Failed to extract PERPLEXITY_API_KEY");
         let client = Client::new();
-        let payload = PerplexityPayload::new("llama-3.1-sonar-small-128k-online".to_string(), query);
+        let payload =
+            PerplexityPayload::new("llama-3.1-sonar-small-128k-online".to_string(), query);
 
         let response = client
             .post("https://api.perplexity.ai/chat/completions")
             .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-            .header(header::AUTHORIZATION, format!("Bearer {}", perplexity_api_key))
+            .header(
+                header::AUTHORIZATION,
+                format!("Bearer {}", perplexity_api_key),
+            )
             .json(&payload)
             .send()
             .await?;

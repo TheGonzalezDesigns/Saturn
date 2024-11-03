@@ -1,3 +1,3 @@
-pub mod jarvis;
-pub mod search;
 pub mod gemini;
+pub mod openai;
+pub mod perplexity;

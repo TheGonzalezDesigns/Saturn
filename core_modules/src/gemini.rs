@@ -1,41 +1,41 @@
 pub mod gemini {
     use anyhow::{bail, Error, Result};
     use dotenv::dotenv;
-    use reqwest::{Client, header, StatusCode};
+    use reqwest::{header, Client, StatusCode};
     use serde::{Deserialize, Serialize};
     use std::{env, thread, time};
 
-#[derive(Serialize)]
+    #[derive(Serialize)]
     struct GeminiRequest {
         contents: Vec<GeminiContent>,
     }
 
-#[derive(Serialize)]
+    #[derive(Serialize)]
     struct GeminiContent {
         parts: Vec<GeminiPart>,
     }
 
-#[derive(Serialize)]
+    #[derive(Serialize)]
     struct GeminiPart {
         text: String,
     }
 
-#[derive(Deserialize)]
+    #[derive(Deserialize)]
     struct GeminiResponse {
         candidates: Vec<GeminiCandidate>,
     }
 
-#[derive(Deserialize)]
+    #[derive(Deserialize)]
     struct GeminiCandidate {
         content: GeminiCandidateContent,
     }
 
-#[derive(Deserialize)]
+    #[derive(Deserialize)]
     struct GeminiCandidateContent {
         parts: Vec<GeminiCandidatePart>,
     }
 
-#[derive(Deserialize)]
+    #[derive(Deserialize)]
     struct GeminiCandidatePart {
         text: String,
     }
@@ -53,7 +53,9 @@ pub mod gemini {
             // Build the JSON request payload
             let payload = GeminiRequest {
                 contents: vec![GeminiContent {
-                    parts: vec![GeminiPart { text: query.clone() }],
+                    parts: vec![GeminiPart {
+                        text: query.clone(),
+                    }],
                 }],
             };
 
@@ -88,4 +90,3 @@ pub mod gemini {
         bail!("Failed to retrieve a valid response after retries.")
     }
 }
-

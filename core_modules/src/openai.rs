@@ -1,4 +1,4 @@
-pub mod jarvis {
+pub mod openai {
     use anyhow::{bail, Error, Result};
     use dotenv::dotenv;
     use reqwest::{header, Client, StatusCode};
@@ -54,7 +54,7 @@ pub mod jarvis {
         choices: OpenAIChatCompletionResponseChoices,
     }
 
-    pub async fn jarvis(query: String) -> Result<String, Error> {
+    pub async fn openai(query: String) -> Result<String, Error> {
         dotenv().ok();
         let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
         let client = Client::new();
