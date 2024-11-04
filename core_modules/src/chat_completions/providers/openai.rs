@@ -300,12 +300,13 @@ pub mod openai_json {
 
         let completion: OpenAIChatCompletionResponse = response.json().await?;
 
+        println!("completion: {:?}", completion);
+
         if let Some(choice) = completion.choices.first() {
             if let Some(tool_calls) = &choice.message.tool_calls {
                 if let Some(tool_call) = tool_calls.first() {
                     return Ok(format!(
-                        "Function '{}' called with arguments: {}",
-                        tool_call.function.name, tool_call.function.arguments
+                        "{}", tool_call.function.arguments
                     ));
                 }
             }
