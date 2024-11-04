@@ -1,61 +1,61 @@
 pub mod json_query {
-  use anyhow::{bail, Result};
-  use serde_json::{json, Value};
-  use tokio::time::{sleep, Duration};
+    use anyhow::{bail, Result};
+    use serde_json::{json, Value};
+    use tokio::time::{sleep, Duration};
 
-  use crate::chat_completions::providers::openai::openai_json::function_call;
+    use crate::chat_completions::providers::openai::openai_json::function_call;
 
-  /// The main function for handling JSON queries with validation and retries.
-  pub async fn json_query(
-      query: String,
-      function_name: String,
-      function_description: String,
-      properties: Value,
-      required: Vec<String>,
-      function_call_arguments: Value,
-  ) -> Result<Value> {
-      // Retry up to 10 times if response does not contain required keys
-      for attempt in 1..=10 {
-          println!("Attempt: #{attempt}");
+    /// The main function for handling JSON queries with validation and retries.
+    pub async fn json_query(
+        query: String,
+        function_name: String,
+        function_description: String,
+        properties: Value,
+        required: Vec<String>,
+        function_call_arguments: Value,
+    ) -> Result<Value> {
+        // Retry up to 10 times if response does not contain required keys
+        for attempt in 1..=10 {
+            println!("Attempt: #{attempt}");
 
-          // Call the underlying function
-          let response = function_call(
-              query.clone(),
-              function_name.clone(),
-              function_description.clone(),
-              properties.clone(),
-              required.clone(),
-              function_call_arguments.clone(),
-          )
-          .await?;
+            // Call the underlying function
+            let response = function_call(
+                query.clone(),
+                function_name.clone(),
+                function_description.clone(),
+                properties.clone(),
+                required.clone(),
+                function_call_arguments.clone(),
+            )
+            .await?;
 
-          println!("Response: {:?}", response);
+            println!("Response: {:?}", response);
 
-          // Parse response as JSON
-          let response_json: Value = response;
+            // Parse response as JSON
+            let response_json: Value = response;
 
-          // Check if all required keys are present
-          if has_required_keys(&response_json, &required) {
-              return Ok(response_json);
-          }
+            // Check if all required keys are present
+            if has_required_keys(&response_json, &required) {
+                return Ok(response_json);
+            }
 
-          // Log retry attempt
-          eprintln!("Attempt {}/10: Missing required keys, retrying...", attempt);
+            // Log retry attempt
+            eprintln!("Attempt {}/10: Missing required keys, retrying...", attempt);
 
-          // Delay between retries (optional, e.g., 500ms)
-          sleep(Duration::from_millis(500)).await;
-      }
+            // Delay between retries (optional, e.g., 500ms)
+            sleep(Duration::from_millis(500)).await;
+        }
 
-      // If all attempts fail, return an error
-      bail!("Failed to retrieve a response with all required keys after 10 attempts.")
-  }
+        // If all attempts fail, return an error
+        bail!("Failed to retrieve a response with all required keys after 10 attempts.")
+    }
 
-  /// Check if all required keys are present in the response.
-  fn has_required_keys(response_json: &Value, required_keys: &[String]) -> bool {
-      required_keys
-          .iter()
-          .all(|key| response_json.get(key).is_some())
-  }
+    /// Check if all required keys are present in the response.
+    fn has_required_keys(response_json: &Value, required_keys: &[String]) -> bool {
+        required_keys
+            .iter()
+            .all(|key| response_json.get(key).is_some())
+    }
 }
 
 #[cfg(test)]
