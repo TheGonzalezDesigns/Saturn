@@ -29,7 +29,7 @@ pub mod json_query {
             )
             .await?;
 
-            println!("Response: {:?}", response);
+            //println!("Response: {:?}", response);
 
             // Parse response as JSON
             let response_json: Value = response;
