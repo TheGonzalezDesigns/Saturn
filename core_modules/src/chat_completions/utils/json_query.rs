@@ -16,7 +16,7 @@ pub async fn json_query(
     // Retry up to 10 times if response does not contain required keys
     for attempt in 1..=10 {
         println!("Attempt: #{attempt}");
-        
+
         // Call the underlying function
         let response = function_call(
             query.clone(),
@@ -51,32 +51,52 @@ pub async fn json_query(
 
 /// Check if all required keys are present in the response.
 fn has_required_keys(response_json: &Value, required_keys: &[String]) -> bool {
-    required_keys.iter().all(|key| response_json.get(key).is_some())
+    required_keys
+        .iter()
+        .all(|key| response_json.get(key).is_some())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::json_query;
     use super::super::super::providers::openai::openai::openai;
+    use super::json_query;
     use serde_json::json;
 
     #[tokio::test]
     async fn weather_test() {
         let query: String = "What's the weather like in orange county, CA?".to_string();
         let response = openai(query.clone()).await.expect("Weather test error:");
-        let json_response = json_query("Does this query need internet access".to_string(),
-                      "check_internet_access".to_string(),
-                      "Checks if a given query's response is lacking internet access".to_string(),
-                      json!({
-                        "needs_internet": {
-                            "type": "boolean",
-                            "description": "true if the text indicates a need to access the internet, false otherwise",
-                        }
-                      }), vec!["needs_internet".to_string()],
-                      json!({
-                          "query": &query,
-                          "response": &response
-                      })).await.expect("OpenAI JSON Response Error:");
-        panic!("response: {}", json_response);
+
+        let json_response = json_query(
+            "Does this query need internet access".to_string(),
+            "check_internet_access".to_string(),
+            "Checks if a given query's response is lacking internet access".to_string(),
+            json!({
+                "needs_internet": {
+                    "type": "boolean",
+                    "description": "true if the text indicates a need to access the internet, false otherwise",
+                }
+            }),
+            vec!["needs_internet".to_string()],
+            json!({
+                "query": &query,
+                "response": &response
+            })
+        )
+        .await
+        .expect("OpenAI JSON Response Error:");
+
+        let needs_internet = json_response
+            .get("needs_internet")
+            .expect("Key 'needs_internet' not found");
+
+        // Ensure that 'needs_internet' is a boolean and is true
+        assert_eq!(
+            needs_internet.as_bool(),
+            Some(true),
+            "Expected 'needs_internet' to be true"
+        );
+
+        println!("needs_internet: {needs_internet}");
     }
 }
