@@ -268,7 +268,7 @@ pub mod openai_json {
         properties: Value,
         required: Vec<String>,
         function_call_arguments: Value,
-    ) -> Result<String, Error> {
+    ) -> Result<Value, Error> {
         dotenv().ok();
         let openai_api_key = env::var("OPENAI_API_KEY").expect("Failed to extract OPENAI_API_KEY");
         let client = Client::new();
@@ -282,9 +282,6 @@ pub mod openai_json {
             required,
             function_call_arguments,
         );
-
-        let pretty_payload = serde_json::to_string_pretty(&payload).map_err(|e| Error::new(e))?;
-        //bail!("Payload:\n{}", pretty_payload);
 
         let response = client
             .post("https://api.openai.com/v1/chat/completions")
@@ -305,14 +302,14 @@ pub mod openai_json {
         if let Some(choice) = completion.choices.first() {
             if let Some(tool_calls) = &choice.message.tool_calls {
                 if let Some(tool_call) = tool_calls.first() {
-                    return Ok(format!(
-                        "{}", tool_call.function.arguments
-                    ));
+                    let arguments: Value = serde_json::from_str(&tool_call.function.arguments)?;
+                    return Ok(arguments);
                 }
             }
 
             if let Some(content) = &choice.message.content {
-                return Ok(content.clone());
+                let content_json: Value = serde_json::from_str(content)?;
+                return Ok(content_json);
             }
         }
 
@@ -338,22 +335,32 @@ mod tests {
     async fn test_openai_function_call_with_election_data() {
         setup_openai_key();
 
+        // Define properties for election data with the expected response structure
         let properties = json!({
             "candidate": {
                 "type": "string",
-                "description": "The name of the candidate"
+                "description": "The name of the winning candidate"
             },
+            "year": {
+                "type": "integer",
+                "description": "The year of the election"
+            },
+            "votes_percentage": {
+                "type": "integer",
+                "description": "Percentage of popular votes won by the candidate"
+            }
         });
-        let required = vec!["candidate".to_string()];
+        let required = vec!["candidate".to_string(), "year".to_string(), "votes_percentage".to_string()];
 
+        // Define the function arguments
         let function_call_arguments = json!({
-            "election_year": 2020,
+            "election_year": 2020
         });
 
-        let query = "Who won the last USA presidential election?".to_string();
-        let function_name = "get_previous_candidate".to_string();
-        let function_description =
-            "Get the previous winner of the latest USA elections".to_string();
+        // Query to determine the winner of the election
+        let query = "Who won the 2020 USA presidential election?".to_string();
+        let function_name = "get_election_winner".to_string();
+        let function_description = "Get the winner of the specified USA presidential election.".to_string();
 
         match function_call(
             query,
@@ -367,10 +374,10 @@ mod tests {
         {
             Ok(response) => {
                 assert!(
-                    response.contains("Function") || !response.is_empty(),
-                    "Expected a tool call or valid response content"
+                    response.get("candidate").is_some(),
+                    "Expected a candidate field in the response"
                 );
-                println!("Function Call Response with Election Data: {}", response);
+                println!("Election Data Response: {:?}", response);
             }
             Err(e) => panic!(
                 "Failed to get a response from OpenAI function call: {:?}",
@@ -383,30 +390,29 @@ mod tests {
     async fn test_openai_function_call_with_location_data_flat() {
         setup_openai_key();
 
-        // Define flat properties for location data (no nested structures)
+        // Define properties for geographic data
         let properties = json!({
             "latitude": {
                 "type": "number",
-                "description": "Latitude of the location"
+                "description": "Latitude of the specified location"
             },
             "longitude": {
                 "type": "number",
-                "description": "Longitude of the location"
+                "description": "Longitude of the specified location"
             }
         });
         let required = vec!["latitude".to_string(), "longitude".to_string()];
 
-        // Define arguments for the function call
+        // Define the function arguments
         let function_call_arguments = json!({
             "city": "Havana",
             "country": "Cuba"
         });
 
-        // Test query to retrieve location data
+        // Query to retrieve coordinates of Havana, Cuba
         let query = "What are the coordinates of Havana, Cuba?".to_string();
         let function_name = "get_location_coordinates".to_string();
-        let function_description =
-            "Get the latitude and longitude of a specified city and country.".to_string();
+        let function_description = "Retrieve latitude and longitude for a specific location.".to_string();
 
         match function_call(
             query,
@@ -420,10 +426,10 @@ mod tests {
         {
             Ok(response) => {
                 assert!(
-                    response.contains("Function") || !response.is_empty(),
-                    "Expected a tool call or valid response content"
+                    response.get("latitude").is_some() && response.get("longitude").is_some(),
+                    "Expected latitude and longitude fields in the response"
                 );
-                println!("Function Call Response with Location Data: {}", response);
+                println!("Location Data Response: {:?}", response);
             }
             Err(e) => panic!(
                 "Failed to get a response from OpenAI function call: {:?}",
