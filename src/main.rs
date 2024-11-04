@@ -1,60 +1,28 @@
-use core_modules::chat_completions::providers::gemini::gemini::gemini;
-use core_modules::chat_completions::providers::openai::openai::openai;
-use core_modules::chat_completions::providers::openai::openai_json::function_call;
-use core_modules::chat_completions::providers::perplexity::perplexity::perplexity;
-use serde_json::json;
+use core_modules::chat_completions::bots::saturn::saturn::saturn;
 use tokio::main;
 
 #[main]
 async fn main() {
-    let query = String::from("What is the weather like today?");
-    let function_call_query = String::from("What is the weather like in Boston today?");
-    let perplexity_query = String::from("What's the weather forecast for this week?");
+    // Define queries for testing different types of responses.
+    let historical_query = String::from("Who won the last USA presidential election?");
+    let live_update_query = String::from("What is the weather like today in Boston?");
+    let forecast_query = String::from("What's the weather forecast for this week in New York City?");
 
-    // Call OpenAI standard completion
-    let response = openai(query.clone()).await.expect("Failed to call openai");
-    println!("Jarvis: {query}: {response}");
-
-    // Define dynamic properties and required fields for the function call related to weather data
-    let properties = json!({
-        "location": {
-            "type": "string",
-            "description": "The city and state, e.g., Boston, MA"
-        },
-        "unit": {
-            "type": "string",
-            "enum": ["celsius", "fahrenheit"],
-            "description": "The temperature unit"
-        }
-    });
-    let required = vec!["location".to_string()];
-
-    // Define arguments for the function call related to weather data
-    let function_call_arguments = json!({
-        "location": "Boston, MA",
-        "unit": "fahrenheit"
-    });
-
-    // Call OpenAI function call to get weather information for Boston
-    let function_response = function_call(
-        function_call_query.clone(),
-        "get_current_weather".to_string(),
-        "Retrieve the current weather for a given location.".to_string(),
-        properties,
-        required,
-        function_call_arguments,
-    )
-    .await
-    .expect("Failed to call OpenAI function");
-    println!("OpenAI Function Call: {function_call_query}: {function_response}");
-
-    // Call Gemini
-    let gemini_response = gemini(query.clone()).await.expect("Failed to call gemini");
-    println!("Gemini: {query}: {gemini_response}");
-
-    // Call Perplexity
-    let perplexity_response = perplexity(perplexity_query.clone())
+    // Call Saturn bot for a historical question
+    let historical_response = saturn(historical_query.clone())
         .await
-        .expect("Failed to call perplexity");
-    println!("Perplexity: {perplexity_query}: {perplexity_response}");
+        .expect("Saturn failed to respond to the historical query");
+    println!("Saturn (Historical): {historical_query}: {historical_response}");
+
+    // Call Saturn bot for a live update question (weather today)
+    let live_update_response = saturn(live_update_query.clone())
+        .await
+        .expect("Saturn failed to respond to the live update query");
+    println!("Saturn (Live Update): {live_update_query}: {live_update_response}");
+
+    // Call Saturn bot for a weekly forecast, expecting internet access requirement
+    let forecast_response = saturn(forecast_query.clone())
+        .await
+        .expect("Saturn failed to respond to the forecast query");
+    println!("Saturn (Forecast): {forecast_query}: {forecast_response}");
 }
