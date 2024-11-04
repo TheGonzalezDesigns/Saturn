@@ -16,7 +16,7 @@ pub mod json_query {
     ) -> Result<Value> {
         // Retry up to 10 times if response does not contain required keys
         for attempt in 1..=10 {
-            println!("Attempt: #{attempt}");
+            //println!("Attempt: #{attempt}");
 
             // Call the underlying function
             let response = function_call(

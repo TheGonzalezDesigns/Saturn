@@ -33,7 +33,7 @@ pub mod saturn {
 
         // Step 3: Check if the response requires internet access
         if needs_internet(query.clone()).await? {
-            println!("Internet access is required; querying Perplexity.");
+            //println!("Internet access is required; querying Perplexity.");
             // Step 4: If internet access is required, use Perplexity
             response = perplexity(query).await?;
         }
