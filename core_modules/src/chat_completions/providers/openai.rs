@@ -297,7 +297,7 @@ pub mod openai_json {
 
         let completion: OpenAIChatCompletionResponse = response.json().await?;
 
-        println!("completion: {:?}", completion);
+        //println!("completion: {:?}", completion);
 
         if let Some(choice) = completion.choices.first() {
             if let Some(tool_calls) = &choice.message.tool_calls {
@@ -350,7 +350,11 @@ mod tests {
                 "description": "Percentage of popular votes won by the candidate"
             }
         });
-        let required = vec!["candidate".to_string(), "year".to_string(), "votes_percentage".to_string()];
+        let required = vec![
+            "candidate".to_string(),
+            "year".to_string(),
+            "votes_percentage".to_string(),
+        ];
 
         // Define the function arguments
         let function_call_arguments = json!({
@@ -360,7 +364,8 @@ mod tests {
         // Query to determine the winner of the election
         let query = "Who won the 2020 USA presidential election?".to_string();
         let function_name = "get_election_winner".to_string();
-        let function_description = "Get the winner of the specified USA presidential election.".to_string();
+        let function_description =
+            "Get the winner of the specified USA presidential election.".to_string();
 
         match function_call(
             query,
@@ -412,7 +417,8 @@ mod tests {
         // Query to retrieve coordinates of Havana, Cuba
         let query = "What are the coordinates of Havana, Cuba?".to_string();
         let function_name = "get_location_coordinates".to_string();
-        let function_description = "Retrieve latitude and longitude for a specific location.".to_string();
+        let function_description =
+            "Retrieve latitude and longitude for a specific location.".to_string();
 
         match function_call(
             query,
