@@ -1,8 +1,8 @@
+use crate::chat_completions::bots::saturn::saturn::saturn;
 use std::io::{self, Write};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
 use tokio::task;
-use crate::chat_completions::bots::saturn::saturn::saturn;
 
 /// Starts the chat interface with Saturn bot.
 pub async fn start_chat() {
