@@ -50,7 +50,8 @@ mod tests {
     #[tokio::test]
     async fn test_is_satisfactory_for_response() {
         let query = "What is the population of New York City?".to_string();
-        let response = "New York City has a population of approximately 8.4 million people.".to_string();
+        let response =
+            "New York City has a population of approximately 8.4 million people.".to_string();
 
         let satisfactory = is_satisfactory(query.clone(), response.clone())
             .await
