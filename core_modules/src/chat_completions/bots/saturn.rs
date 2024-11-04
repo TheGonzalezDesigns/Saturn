@@ -40,13 +40,13 @@ pub mod saturn {
 
             // Step 3: Check if the response requires internet access
             if needs_internet(query.clone()).await? {
-                println!("Internet access is required; querying Perplexity.");
+                //println!("Internet access is required; querying Perplexity.");
                 response = perplexity(query.clone()).await?;
             }
 
             // Step 4: Check if the response is satisfactory
             if is_satisfactory(query.clone(), response.clone()).await? {
-                println!("Satisfied with response after {} attempts", attempts + 1);
+                //println!("Satisfied with response after {} attempts", attempts + 1);
                 return Ok(response); // Return satisfactory response
             } else {
                 eprintln!("Unsatisfactory response received, retrying...");
