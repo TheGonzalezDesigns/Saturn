@@ -13,9 +13,10 @@ pub async fn json_query(
     required: Vec<String>,
     function_call_arguments: Value,
 ) -> Result<Value> {
-    // Retry up to 10 times if response is not valid JSON or does not contain required keys
+    // Retry up to 10 times if response does not contain required keys
     for attempt in 1..=10 {
         println!("Attempt: #{attempt}");
+        
         // Call the underlying function
         let response = function_call(
             query.clone(),
@@ -27,30 +28,25 @@ pub async fn json_query(
         )
         .await?;
 
-        println!("Response: {response}");
+        println!("Response: {:?}", response);
 
-        // Parse response into JSON format
-        let response_json: Value = serde_json::from_str(&response)?;
+        // Parse response as JSON
+        let response_json: Value = response;
 
-        // Check for the "is_valid_json" key and required keys
-        if is_valid_json(&response_json) && has_required_keys(&response_json, &required) {
+        // Check if all required keys are present
+        if has_required_keys(&response_json, &required) {
             return Ok(response_json);
         }
 
         // Log retry attempt
-        eprintln!("Attempt {}/10: Invalid JSON or missing required keys, retrying...", attempt);
+        eprintln!("Attempt {}/10: Missing required keys, retrying...", attempt);
 
         // Delay between retries (optional, e.g., 500ms)
         sleep(Duration::from_millis(500)).await;
     }
 
     // If all attempts fail, return an error
-    bail!("Failed to retrieve valid JSON response after 10 attempts.")
-}
-
-/// Check if the response contains `"is_valid_json": true`.
-fn is_valid_json(response_json: &Value) -> bool {
-    response_json.get("is_valid_json").and_then(|v| v.as_bool()) == Some(true)
+    bail!("Failed to retrieve a response with all required keys after 10 attempts.")
 }
 
 /// Check if all required keys are present in the response.
@@ -60,37 +56,27 @@ fn has_required_keys(response_json: &Value, required_keys: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::function_call;
+    use super::json_query;
     use super::super::super::providers::openai::openai::openai;
-    use super::super::super::providers::openai::openai_json::function_call as openai_function_call;
     use serde_json::json;
 
     #[tokio::test]
     async fn weather_test() {
         let query: String = "What's the weather like in orange county, CA?".to_string();
         let response = openai(query.clone()).await.expect("Weather test error:");
-        let openai_json_response = openai_function_call("Does this query need internet access".to_string(),
+        let json_response = json_query("Does this query need internet access".to_string(),
                       "check_internet_access".to_string(),
                       "Checks if a given query's response is lacking internet access".to_string(),
                       json!({
                         "needs_internet": {
-                            "type": "string",
-                            "enum": ["true", "false"],
-                            "description": "true if the text indicates a need to acccess the internet, false otherwise",
+                            "type": "boolean",
+                            "description": "true if the text indicates a need to access the internet, false otherwise",
                         }
                       }), vec!["needs_internet".to_string()],
                       json!({
                           "query": &query,
                           "response": &response
                       })).await.expect("OpenAI JSON Response Error:");
-        panic!("openai_json: {}", openai_json_response);
+        panic!("response: {}", json_response);
     }
 }
-/*
-    function_name: String,
-    function_description: String,
-    properties: Value,
-    required: Vec<String>,
-    function_call_arguments: Value,
-*/
-
