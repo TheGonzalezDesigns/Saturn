@@ -1,7 +1,7 @@
-use core_modules::gemini::gemini::gemini;
-use core_modules::openai::openai::openai;
-use core_modules::openai::openai_json::function_call;
-use core_modules::perplexity::perplexity::perplexity;
+use core_modules::chat_completions::providers::gemini::gemini::gemini;
+use core_modules::chat_completions::providers::openai::openai::openai;
+use core_modules::chat_completions::providers::openai::openai_json::function_call;
+use core_modules::chat_completions::providers::perplexity::perplexity::perplexity;
 use serde_json::json;
 use tokio::main;
 

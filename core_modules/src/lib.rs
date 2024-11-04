@@ -1,3 +1,1 @@
-pub mod gemini;
-pub mod openai;
-pub mod perplexity;
+pub mod chat_completions;
