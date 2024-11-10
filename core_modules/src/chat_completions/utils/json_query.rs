@@ -16,10 +16,10 @@ pub mod json_query {
     ) -> Result<Value> {
         // Retry up to 10 times if response does not contain required keys
         for attempt in 1..=10 {
-            //println!("Attempt: #{attempt}");
+            //println!("JSON Query Attempt: #{attempt} for '{query}'");
 
             // Call the underlying function
-            let response = function_call(
+            let response = match function_call(
                 query.clone(),
                 function_name.clone(),
                 function_description.clone(),
@@ -27,7 +27,13 @@ pub mod json_query {
                 required.clone(),
                 function_call_arguments.clone(),
             )
-            .await?;
+            .await {
+                Ok(response) => response,
+                Err(_e) => {
+                    //println!("Function Call error: {e}");
+                    continue
+                }
+            };
 
             //println!("Response: {:?}", response);
 
