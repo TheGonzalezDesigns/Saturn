@@ -7,7 +7,7 @@ use warp::{http::StatusCode, reply, serve, Filter, Rejection, Reply};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Server initiating...");
     let query = warp::path("query")
-        .and(warp::get())
+        .and(warp::post())
         .and(warp::body::json())
         .and_then(handle_query);
     println!("Routes registered...");
