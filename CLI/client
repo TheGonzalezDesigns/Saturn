@@ -46,28 +46,33 @@ async function saturn(query) {
 
 async function conversation() {
   echo("  └────────────────────╼", cy);
-  intro("Starting new conversation");
-  const msgYou = `${"You"}:`;
-  const userPrompt = await text({
-    message: `${cyan(msgYou)}`,
-    placeholder: `send a message ('exit' to quit)`,
-    validate: (value) => {
-      if (!value) return "Please enter a prompt.";
-    },
-  });
-  if (isCancel(userPrompt) || userPrompt === "exit") {
-    outro("Goodbye!");
-    process.exit(0);
+  intro("Saturn welcomes you.");
+
+  while (true) {
+    const msgYou = `${"You"}:`;
+    const userPrompt = await text({
+      message: `${cyan(msgYou)}`,
+      placeholder: `send a message ('exit' to quit)`,
+      validate: (value) => {
+        if (!value) return "Please enter a prompt.";
+      },
+    });
+
+    if (isCancel(userPrompt) || userPrompt.toLowerCase() === "exit") {
+      outro("Signing off.");
+      process.exit(0);
+    }
+
+    const infoSpin = spinner();
+    infoSpin.start(`THINKING...`);
+
+    const saturnResponse = await saturn(userPrompt);
+
+    infoSpin.stop(`${green("Web Search:")}`);
+    await stream(`│\n${saturnResponse}`);
+    console.log("");
+    console.log("");
   }
-  const infoSpin = spinner();
-  infoSpin.start(`THINKING...`);
-
-  const saturnResponse = await saturn(userPrompt);
-
-  infoSpin.stop(`${green("Web Search:")}`);
-  await stream(`│\n${saturnResponse}`);
-  console.log("");
-  console.log("");
 }
 
 await conversation();
