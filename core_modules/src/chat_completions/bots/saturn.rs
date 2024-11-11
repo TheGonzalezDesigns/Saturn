@@ -20,26 +20,32 @@ pub mod saturn {
     pub async fn saturn(query: String) -> Result<String> {
         let mut attempts = 0;
         let max_attempts = 10;
+        let mut needs_internet_flag = false;
+        let mut response = String::from("Unexpected lack of response.");
 
         while attempts < max_attempts {
-            // Step 1: Try to fulfill the query using OpenAI
-            let mut response = match openai(query.clone()).await {
-                Ok(res) => res,
-                Err(_) => {
-                    eprintln!("OpenAI failed; falling back to Gemini.");
-                    // Step 2: If OpenAI fails, try using Gemini
-                    match gemini(query.clone()).await {
-                        Ok(res) => res,
-                        Err(_) => {
-                            eprintln!("Gemini also failed; no response generated.");
-                            "".to_string() // If both fail, return an empty string as a last resort
+
+            if !needs_internet_flag {
+                // Step 1: Try to fulfill the query using OpenAI
+                response = match openai(query.clone()).await {
+                    Ok(res) => res,
+                    Err(_) => {
+                        eprintln!("OpenAI failed; falling back to Gemini.");
+                        // Step 2: If OpenAI fails, try using Gemini
+                        match gemini(query.clone()).await {
+                            Ok(res) => res,
+                            Err(_) => {
+                                eprintln!("Gemini also failed; no response generated.");
+                                "".to_string() // If both fail, return an empty string as a last resort
+                            }
                         }
                     }
-                }
-            };
+                };
+            }
 
             // Step 3: Check if the response requires internet access
-            if needs_internet(query.clone()).await? {
+            if needs_internet_flag || needs_internet(query.clone()).await? {
+                needs_internet_flag = true;
                 println!("Internet access is required; querying Perplexity.");
                 response = perplexity(query.clone()).await?;
             }
