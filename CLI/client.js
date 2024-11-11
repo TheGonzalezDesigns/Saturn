@@ -16,19 +16,21 @@ const echo = (text, color = cy) => {
   // Convert hex color to rgb
   const rgb = hexToRgb(color);
   // Apply rgb color and text to output
-  process.stdout.write(
-    `\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}\m${text}\x1b[0m\n`
-  );
+  process.stdout.write(`\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}m${text}\x1b[0m\n`);
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const stream = async (text) => {
   const rgb = hexToRgb("17B890");
-  await text.split(" ").forEach(async (x) => {
-    process.stdout.write(`\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}\m${x} \x1b[0m`);
+  const words = text.split(" ");
+  for (const word of words) {
+    process.stdout.write(
+      `\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}m${word} \x1b[0m`
+    );
     await sleep(100);
-  });
+  }
+  process.stdout.write("\n");
 };
 
 async function saturn(query) {
