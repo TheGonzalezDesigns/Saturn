@@ -49,6 +49,8 @@ async function conversation() {
   echo("  └────────────────────╼", cy);
   intro("Saturn welcomes you.");
 
+  let history = ""; // Initialize history to keep track of the conversation
+
   while (true) {
     let context = null;
     let userPrompt = "";
@@ -88,12 +90,17 @@ async function conversation() {
     const infoSpin = spinner();
     infoSpin.start(`THINKING...`);
 
-    // Combine the query and context into the final format
-    const query = context
-      ? { query: userPrompt, context }
-      : { query: userPrompt };
+    // Combine the query and history into the final format, with optional context
+    const query = {
+      query: userPrompt,
+      context: context ? context : "",
+      history: history, // Add history to the query
+    };
 
     const saturnResponse = await saturn(query);
+
+    // Update history with user query and Saturn's response
+    history += `You: ${userPrompt}\nSaturn: ${saturnResponse}\n`;
 
     infoSpin.stop(`${green("Web Search:")}`);
     await stream(`│\n${saturnResponse}`);
