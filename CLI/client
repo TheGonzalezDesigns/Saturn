@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { intro, text, isCancel, outro, spinner } from "@clack/prompts";
 import { dim, red, cyan, green } from "kolorist";
+import clipboard from "clipboardy";
 
 const cy = "17B890";
 
@@ -37,7 +38,7 @@ async function saturn(query) {
   const saturnResponse = await fetch("http://localhost:2223/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(query),
   });
   const data = await saturnResponse.json();
   const response = data?.response ? data?.response : data?.error;
@@ -49,10 +50,13 @@ async function conversation() {
   intro("Saturn welcomes you.");
 
   while (true) {
+    let context = null;
+    let userPrompt = "";
+
     const msgYou = `${"You"}:`;
-    const userPrompt = await text({
+    userPrompt = await text({
       message: `${cyan(msgYou)}`,
-      placeholder: `send a message ('exit' to quit)`,
+      placeholder: `send a message ('exit' or 'paste' to use clipboard)`,
       validate: (value) => {
         if (!value) return "Please enter a prompt.";
       },
@@ -63,10 +67,33 @@ async function conversation() {
       process.exit(0);
     }
 
+    // Handle 'paste' command
+    if (userPrompt.toLowerCase() === "paste") {
+      context = await clipboard.read();
+      echo("[PASTED FROM CLIPBOARD]", red);
+      userPrompt = await text({
+        message: `${cyan(msgYou)}`,
+        placeholder: `send a message ('exit' to quit)`,
+        validate: (value) => {
+          if (!value) return "Please enter a prompt.";
+        },
+      });
+
+      if (isCancel(userPrompt) || userPrompt.toLowerCase() === "exit") {
+        outro("Signing off.");
+        process.exit(0);
+      }
+    }
+
     const infoSpin = spinner();
     infoSpin.start(`THINKING...`);
 
-    const saturnResponse = await saturn(userPrompt);
+    // Combine the query and context into the final format
+    const query = context
+      ? { query: userPrompt, context }
+      : { query: userPrompt };
+
+    const saturnResponse = await saturn(query);
 
     infoSpin.stop(`${green("Web Search:")}`);
     await stream(`│\n${saturnResponse}`);
