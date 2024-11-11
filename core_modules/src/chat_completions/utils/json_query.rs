@@ -27,11 +27,12 @@ pub mod json_query {
                 required.clone(),
                 function_call_arguments.clone(),
             )
-            .await {
+            .await
+            {
                 Ok(response) => response,
                 Err(_e) => {
                     //println!("Function Call error: {e}");
-                    continue
+                    continue;
                 }
             };
 
